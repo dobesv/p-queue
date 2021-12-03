@@ -1,11 +1,11 @@
 /* eslint-disable no-new */
-import EventEmitter = require('eventemitter3');
+import EventEmitter from 'eventemitter3';
 import test from 'ava';
 import delay from 'delay';
-import inRange = require('in-range');
-import timeSpan = require('time-span');
-import randomInt = require('random-int');
-import PQueue from '../source';
+import inRange from 'in-range';
+import timeSpan from 'time-span';
+import randomInt from 'random-int';
+import PQueue from '../source/index.js';
 
 const fixture = Symbol('fixture');
 
@@ -42,9 +42,9 @@ test('.add() - concurrency: 1', async t => {
 	const end = timeSpan();
 	const queue = new PQueue({concurrency: 1});
 
-	const mapper = async ([value, ms]: readonly number[]): Promise<number> => queue.add(async () => {
-		await delay(ms);
-		return value;
+	const mapper = async ([value, ms]: readonly number[]) => queue.add(async () => {
+		await delay(ms!);
+		return value!;
 	});
 
 	// eslint-disable-next-line unicorn/no-array-callback-reference
@@ -57,7 +57,7 @@ test('.add() - concurrency: 5', async t => {
 	const queue = new PQueue({concurrency});
 	let running = 0;
 
-	const input = new Array(100).fill(0).map(async () => queue.add(async () => {
+	const input = Array.from({length: 100}).fill(0).map(async () => queue.add(async () => {
 		running++;
 		t.true(running <= concurrency);
 		t.true(queue.pending <= concurrency);
@@ -73,7 +73,7 @@ test('.add() - update concurrency', async t => {
 	const queue = new PQueue({concurrency});
 	let running = 0;
 
-	const input = new Array(100).fill(0).map(async (_value, index) => queue.add(async () => {
+	const input = Array.from({length: 100}).fill(0).map(async (_value, index) => queue.add(async () => {
 		running++;
 
 		t.true(running <= concurrency);
@@ -263,14 +263,14 @@ test('enforce number in options.concurrency', t => {
 		() => {
 			new PQueue({concurrency: 0});
 		},
-		TypeError
+		{instanceOf: TypeError}
 	);
 
 	t.throws(
 		() => {
 			new PQueue({concurrency: undefined});
 		},
-		TypeError
+		{instanceOf: TypeError}
 	);
 
 	t.notThrows(() => {
@@ -291,7 +291,7 @@ test('enforce number in queue.concurrency', t => {
 		() => {
 			(new PQueue()).concurrency = 0;
 		},
-		TypeError
+		{instanceOf: TypeError}
 	);
 
 	t.throws(
@@ -299,7 +299,7 @@ test('enforce number in queue.concurrency', t => {
 			// @ts-expect-error
 			(new PQueue()).concurrency = undefined;
 		},
-		TypeError
+		{instanceOf: TypeError}
 	);
 
 	t.notThrows(() => {
@@ -320,14 +320,14 @@ test('enforce number in options.intervalCap', t => {
 		() => {
 			new PQueue({intervalCap: 0});
 		},
-		TypeError
+		{instanceOf: TypeError}
 	);
 
 	t.throws(
 		() => {
 			new PQueue({intervalCap: undefined});
 		},
-		TypeError
+		{instanceOf: TypeError}
 	);
 
 	t.notThrows(() => {
@@ -348,14 +348,14 @@ test('enforce finite in options.interval', t => {
 		() => {
 			new PQueue({interval: -1});
 		},
-		TypeError
+		{instanceOf: TypeError}
 	);
 
 	t.throws(
 		() => {
 			new PQueue({interval: undefined});
 		},
-		TypeError
+		{instanceOf: TypeError}
 	);
 
 	t.throws(() => {
@@ -474,7 +474,7 @@ test.failing('.add() - handle task throwing error', async t => {
 				throw new Error('broken');
 			}
 		),
-		'broken'
+		{message: 'broken'}
 	);
 	queue.add(() => 'sync 2');
 
@@ -492,7 +492,7 @@ test('.add() - handle task promise failure', async t => {
 				throw new Error('broken');
 			}
 		),
-		'broken'
+		{message: 'broken'}
 	);
 
 	queue.add(() => 'task #1');
@@ -576,10 +576,12 @@ test('.add() - throttled, carryoverConcurrencyCount false', async t => {
 	});
 
 	const values = [0, 1];
-	values.forEach(async value => queue.add(async () => {
-		await delay(600);
-		result.push(value);
-	}));
+	for (const value of values) {
+		queue.add(async () => {
+			await delay(600);
+			result.push(value);
+		});
+	}
 
 	queue.start();
 
@@ -610,10 +612,12 @@ test('.add() - throttled, carryoverConcurrencyCount true', async t => {
 	});
 
 	const values = [0, 1];
-	values.forEach(async value => queue.add(async () => {
-		await delay(600);
-		result.push(value);
-	}));
+	for (const value of values) {
+		queue.add(async () => {
+			await delay(600);
+			result.push(value);
+		});
+	}
 
 	queue.start();
 
@@ -641,7 +645,7 @@ test('.add() - throttled, carryoverConcurrencyCount true', async t => {
 	})();
 
 	await delay(1650);
-	t.deepEqual(result, [0, 1]);
+	t.deepEqual(result, values);
 });
 
 test('.add() - throttled 10, concurrency 5', async t => {
@@ -654,13 +658,16 @@ test('.add() - throttled 10, concurrency 5', async t => {
 		autoStart: false
 	});
 
-	const firstValue = [...new Array(5).keys()];
-	const secondValue = [...new Array(10).keys()];
-	const thirdValue = [...new Array(13).keys()];
-	thirdValue.forEach(async value => queue.add(async () => {
-		await delay(300);
-		result.push(value);
-	}));
+	const firstValue = [...Array.from({length: 5}).keys()];
+	const secondValue = [...Array.from({length: 10}).keys()];
+	const thirdValue = [...Array.from({length: 13}).keys()];
+
+	for (const value of thirdValue) {
+		queue.add(async () => {
+			await delay(300);
+			result.push(value);
+		});
+	}
 
 	queue.start();
 
@@ -700,10 +707,13 @@ test('.add() - throttled finish and resume', async t => {
 	const values = [0, 1];
 	const firstValue = [0, 1];
 	const secondValue = [0, 1, 2];
-	values.forEach(async value => queue.add(async () => {
-		await delay(100);
-		result.push(value);
-	}));
+
+	for (const value of values) {
+		queue.add(async () => {
+			await delay(100);
+			result.push(value);
+		});
+	}
 
 	queue.start();
 
@@ -739,10 +749,13 @@ test('pause should work when throttled', async t => {
 	const values = 	[0, 1, 2, 3];
 	const firstValue = 	[0, 1];
 	const secondValue = [0, 1, 2, 3];
-	values.forEach(async value => queue.add(async () => {
-		await delay(100);
-		result.push(value);
-	}));
+
+	for (const value of values) {
+		queue.add(async () => {
+			await delay(100);
+			result.push(value);
+		});
+	}
 
 	queue.start();
 
@@ -939,6 +952,63 @@ test('should emit next event when completing task', async t => {
 	t.is(queue.pending, 0);
 	t.is(queue.size, 0);
 	t.is(timesCalled, 3);
+});
+
+test('should emit completed / error events', async t => {
+	const queue = new PQueue({concurrency: 1});
+
+	let errorEvents = 0;
+	let completedEvents = 0;
+	queue.on('error', () => {
+		errorEvents++;
+	});
+	queue.on('completed', () => {
+		completedEvents++;
+	});
+
+	const job1 = queue.add(async () => delay(100));
+
+	t.is(queue.pending, 1);
+	t.is(queue.size, 0);
+	t.is(errorEvents, 0);
+	t.is(completedEvents, 0);
+
+	const job2 = queue.add(async () => {
+		await delay(1);
+		throw new Error('failure');
+	});
+
+	t.is(queue.pending, 1);
+	t.is(queue.size, 1);
+	t.is(errorEvents, 0);
+	t.is(completedEvents, 0);
+
+	await job1;
+
+	t.is(queue.pending, 1);
+	t.is(queue.size, 0);
+	t.is(errorEvents, 0);
+	t.is(completedEvents, 1);
+
+	await t.throwsAsync(job2);
+
+	t.is(queue.pending, 0);
+	t.is(queue.size, 0);
+	t.is(errorEvents, 1);
+	t.is(completedEvents, 1);
+
+	const job3 = queue.add(async () => delay(100));
+
+	t.is(queue.pending, 1);
+	t.is(queue.size, 0);
+	t.is(errorEvents, 1);
+	t.is(completedEvents, 1);
+
+	await job3;
+	t.is(queue.pending, 0);
+	t.is(queue.size, 0);
+	t.is(errorEvents, 1);
+	t.is(completedEvents, 2);
 });
 
 test('should verify timeout overrides passed to add', async t => {

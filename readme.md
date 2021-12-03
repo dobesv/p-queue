@@ -15,8 +15,8 @@ $ npm install p-queue
 Here we run only one promise at the time. For example, set `concurrency` to 4 to run four promises at the same time.
 
 ```js
-const {default: PQueue} = require('p-queue');
-const got = require('got');
+import PQueue from 'p-queue';
+import got from 'got';
 
 const queue = new PQueue({concurrency: 1});
 
@@ -112,6 +112,8 @@ If `true`, specifies that any [pending](https://developer.mozilla.org/en-US/docs
 
 Adds a sync or async task to the queue. Always returns a promise.
 
+Note: If your items can potentially throw an exception, you must handle those errors from the returned Promise or they may be reported as an unhandled Promise rejection and potentially cause your process to exit immediately.
+
 ##### fn
 
 Type: `Function`
@@ -170,6 +172,8 @@ Size of the queue, filtered by the given options.
 For example, this can be used to find the number of items remaining in the queue with a specific priority level.
 
 ```js
+import PQueue from 'p-queue';
+
 const queue = new PQueue();
 
 queue.add(async () => '🦄', {priority: 1});
@@ -202,8 +206,8 @@ Whether the queue is currently paused.
 Emitted as each item is processed in the queue for the purpose of tracking progress.
 
 ```js
-const delay = require('delay');
-const {default: PQueue} = require('p-queue');
+import delay from 'delay';
+import PQueue from 'p-queue';
 
 const queue = new PQueue({concurrency: 2});
 
@@ -218,13 +222,48 @@ queue.add(() => Promise.resolve());
 queue.add(() => Promise.resolve());
 queue.add(() => delay(500));
 ```
+
+#### completed
+
+Emitted when an item completes without error.
+
+```js
+import delay from 'delay';
+import PQueue from 'p-queue';
+
+const queue = new PQueue({concurrency: 2});
+
+queue.on('completed', result => {
+	console.log(result);
+});
+
+queue.add(() => Promise.resolve('hello, world!'));
+```
+
+#### error
+
+Emitted if an item throws an error.
+
+```js
+import delay from 'delay';
+import PQueue from 'p-queue';
+
+const queue = new PQueue({concurrency: 2});
+
+queue.on('error', error => {
+	console.error(error);
+});
+
+queue.add(() => Promise.reject(new Error('error')));
+```
+
 #### idle
 
 Emitted every time the queue becomes empty and all promises have completed; `queue.size === 0 && queue.pending === 0`.
 
 ```js
-const delay = require('delay');
-const {default: PQueue} = require('p-queue');
+import delay from 'delay';
+import PQueue from 'p-queue';
 
 const queue = new PQueue();
 
@@ -251,17 +290,18 @@ Emitted every time the add method is called and the number of pending or queued 
 
 #### next
 
-Emitted every time a task is completed and the number of pending or queued tasks is decreased.
+Emitted every time a task is completed and the number of pending or queued tasks is decreased. This is emitted regardless of whether the task completed normally or with an error.
 
 ```js
-const delay = require('delay');
-const {default: PQueue} = require('p-queue');
+import delay from 'delay';
+import PQueue from 'p-queue';
 
 const queue = new PQueue();
 
 queue.on('add', () => {
 	console.log(`Task is added.  Size: ${queue.size}  Pending: ${queue.pending}`);
 });
+
 queue.on('next', () => {
 	console.log(`Task is completed.  Size: ${queue.size}  Pending: ${queue.pending}`);
 });
@@ -284,8 +324,8 @@ await queue.add(() => delay(600));
 A more advanced example to help you understand the flow.
 
 ```js
-const delay = require('delay');
-const {default: PQueue} = require('p-queue');
+import delay from 'delay';
+import PQueue from 'p-queue';
 
 const queue = new PQueue({concurrency: 1});
 
@@ -354,6 +394,8 @@ $ node example.js
 For implementing more complex scheduling policies, you can provide a QueueClass in the options:
 
 ```js
+import PQueue from 'p-queue';
+
 class QueueClass {
 	constructor() {
 		this._queue = [];
@@ -376,9 +418,7 @@ class QueueClass {
 	}
 }
 
-const queue = new PQueue({
-	queueClass: QueueClass
-});
+const queue = new PQueue({queueClass: QueueClass});
 ```
 
 `p-queue` will call corresponding methods to put and get operations from this queue.

@@ -1,8 +1,8 @@
-import EventEmitter = require('eventemitter3');
-import {default as pTimeout, TimeoutError} from 'p-timeout';
-import {Queue, RunFunction} from './queue';
-import PriorityQueue from './priority-queue';
-import {QueueAddOptions, DefaultAddOptions, Options} from './options';
+import EventEmitter from 'eventemitter3';
+import pTimeout, {TimeoutError} from 'p-timeout';
+import {Queue, RunFunction} from './queue.js';
+import PriorityQueue from './priority-queue.js';
+import {QueueAddOptions, DefaultAddOptions, Options} from './options.js';
 
 type ResolveFunction<T = void> = (value?: T | PromiseLike<T>) => void;
 
@@ -18,7 +18,7 @@ const timeoutError = new TimeoutError();
 /**
 Promise queue with concurrency control.
 */
-export default class PQueue<QueueType extends Queue<RunFunction, EnqueueOptionsType> = PriorityQueue, EnqueueOptionsType extends QueueAddOptions = DefaultAddOptions> extends EventEmitter<'active' | 'idle' | 'add' | 'next'> {
+export default class PQueue<QueueType extends Queue<RunFunction, EnqueueOptionsType> = PriorityQueue, EnqueueOptionsType extends QueueAddOptions = DefaultAddOptions> extends EventEmitter<'active' | 'idle' | 'add' | 'next' | 'completed' | 'error'> {
 	private readonly _carryoverConcurrencyCount: boolean;
 
 	private readonly _isIntervalIgnored: boolean;
@@ -252,11 +252,12 @@ export default class PQueue<QueueType extends Queue<RunFunction, EnqueueOptionsT
 						}
 					);
 
-					// TODO: Fix this ignore.
-					// @ts-expect-error
-					resolve(await operation);
+					const result = await operation;
+					resolve(result!);
+					this.emit('completed', result);
 				} catch (error: unknown) {
 					reject(error);
+					this.emit('error', error);
 				}
 
 				this._next();
